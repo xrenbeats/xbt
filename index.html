@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Web App Test</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div class="card">
+            <h1>Success!</h1>
+            <p class="subtitle">The web environment is rendering correctly.</p>
+            <div class="status-indicator">
+                <span id="status-display">Status: Ready</span>
+            </div>
+            <button class="btn-primary" onclick="testAction()">Tap to Test</button>
+        </div>
+    </div>
+
+    <script>
+        function testAction() {
+            const status = document.getElementById('status-display');
+            status.textContent = "Status: Working! 🎉";
+            status.style.color = "#45f3ff";
+        }
+    </script>
+</body>
+</html>
