@@ -1,0 +1,50 @@
+name: Build iOS IPA
+on:
+  workflow_dispatch: # Allows you to start the build manually with a button
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-size: 20
+
+      - name: Install Cordova
+        run: npm install -g cordova
+
+      - name: Create Native iOS Wrapper
+        run: |
+          cordova create build_wrapper com.example.app WebApp
+          cd build_wrapper
+          cordova platform add ios
+          
+          # Copy your custom web assets into the wrapper
+          rm -rf www/*
+          cp ../index.html www/
+          cp ../style.css www/
+          
+          # Replace the default plist with your custom Info.plist
+          cp ../Info.plist platforms/ios/WebApp/WebApp-Info.plist
+
+      - name: Compile Unsigned IPA
+        run: |
+          cd build_wrapper
+          # Build the Xcode project project into a local archive
+          xcodebuild -workspace platforms/ios/WebApp.xcworkspace -scheme WebApp -configuration Debug -sdk iphoneos CODE_SIGNING_ALLOWED=NO
+
+          # Package the compiled .app into the required Payload folder structure
+          mkdir -p ../build/Payload
+          cp -R build/emulator/WebApp.app ../build/Payload/
+          cd ../build
+          zip -r WebApp.ipa Payload
+
+      - name: Upload Finished IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-app-unsigned-ipa
+          path: build/WebApp.ipa
