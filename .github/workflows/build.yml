@@ -29,7 +29,12 @@ jobs:
           cp ../index.html www/
           cp ../style.css www/
           
-          cp ../Info.plist platforms/ios/WebApp/WebApp-Info.plist
+          INFO_PLIST=$(find platforms/ios -type f \( -name 'Info.plist' -o -name 'WebApp-Info.plist' \) ! -path '*/CordovaLib/*' | head -n 1)
+          if [ -z "$INFO_PLIST" ]; then
+            echo "Could not find the generated app Info.plist under platforms/ios"
+            exit 1
+          fi
+          cp ../Info.plist "$INFO_PLIST"
 
       - name: Compile Unsigned IPA
         run: |
