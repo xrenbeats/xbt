@@ -19,6 +19,8 @@ jobs:
 
       - name: Create Native iOS Wrapper
         run: |
+          set -e
+          # Create the project with a UNIQUE bundle ID (com.example.app often triggers errors)
           cordova create build_wrapper com.githubuser.webapp WebApp
           cd build_wrapper
           cordova platform add ios
@@ -27,27 +29,30 @@ jobs:
           cp ../index.html www/
           cp ../style.css www/
           
-          cp ../Info.plist platforms/ios/App/App-Info.plist
+          cp ../Info.plist platforms/ios/WebApp/WebApp-Info.plist
 
       - name: Compile Unsigned IPA
         run: |
+          set -e
           cd build_wrapper
           
           xcodebuild build \
-            -workspace platforms/ios/App.xcworkspace \
-            -scheme App \
+            -workspace platforms/ios/WebApp.xcworkspace \
+            -scheme WebApp \
             -configuration Release \
             -sdk iphoneos \
             -destination "generic/platform=iOS" \
             CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             AD_HOC_CODE_SIGNING_ALLOWED=NO \
             CONFIGURATION_BUILD_DIR=./build_output
 
-          # Package the payload
           mkdir -p ../build/Payload
-          cp -R build_output/App.app ../build/Payload/
+          cp -R build_output/WebApp.app ../build/Payload/
           cd ../build
           zip -r WebApp.ipa Payload
 
