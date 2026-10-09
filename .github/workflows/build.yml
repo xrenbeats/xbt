@@ -19,33 +19,33 @@ jobs:
 
       - name: Create Native iOS Wrapper
         run: |
-          cordova create build_wrapper com.example.app WebApp
+          cordova create build_wrapper com.githubuser.webapp WebApp
           cd build_wrapper
           cordova platform add ios
           
-          # Copy your custom web assets into the wrapper
           rm -rf www/*
           cp ../index.html www/
           cp ../style.css www/
           
-          # Cordova 8 hardcodes the internal technical target directory name to "App"
           cp ../Info.plist platforms/ios/App/App-Info.plist
 
       - name: Compile Unsigned IPA
         run: |
           cd build_wrapper
           
-          # FIX: Force target compilation to generic arm64 architecture and define a strict output directory
-          xcodebuild -workspace platforms/ios/App.xcworkspace \
-                     -scheme App \
-                     -configuration Debug \
-                     -sdk iphoneos \
-                     -destination "generic/platform=iOS" \
-                     CONFIGURATION_BUILD_DIR=./build_output \
-                     CODE_SIGNING_ALLOWED=NO \
-                     CODE_SIGNING_REQUIRED=NO
+          xcodebuild build \
+            -workspace platforms/ios/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            AD_HOC_CODE_SIGNING_ALLOWED=NO \
+            CONFIGURATION_BUILD_DIR=./build_output
 
-          # Package the compiled app layout into the required folder tree for SideStore
+          # Package the payload
           mkdir -p ../build/Payload
           cp -R build_output/App.app ../build/Payload/
           cd ../build
