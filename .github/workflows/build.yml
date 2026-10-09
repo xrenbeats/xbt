@@ -28,18 +28,26 @@ jobs:
           cp ../index.html www/
           cp ../style.css www/
           
-          # FIX: Cordova 8 hardcodes the internal technical target directory name to "App"
+          # Cordova 8 hardcodes the internal technical target directory name to "App"
           cp ../Info.plist platforms/ios/App/App-Info.plist
 
       - name: Compile Unsigned IPA
         run: |
           cd build_wrapper
-          # FIX: Point the build scheme parameters to the hardcoded "App" workspace configurations
-          xcodebuild -workspace platforms/ios/App.xcworkspace -scheme App -configuration Debug -sdk iphoneos CODE_SIGNING_ALLOWED=NO
+          
+          # FIX: Force target compilation to generic arm64 architecture and define a strict output directory
+          xcodebuild -workspace platforms/ios/App.xcworkspace \
+                     -scheme App \
+                     -configuration Debug \
+                     -sdk iphoneos \
+                     -destination "generic/platform=iOS" \
+                     CONFIGURATION_BUILD_DIR=./build_output \
+                     CODE_SIGNING_ALLOWED=NO \
+                     CODE_SIGNING_REQUIRED=NO
 
           # Package the compiled app layout into the required folder tree for SideStore
           mkdir -p ../build/Payload
-          cp -R build/emulator/App.app ../build/Payload/
+          cp -R build_output/App.app ../build/Payload/
           cd ../build
           zip -r WebApp.ipa Payload
 
