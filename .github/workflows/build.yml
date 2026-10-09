@@ -1,4 +1,5 @@
 name: Build iOS IPA
+
 on:
   workflow_dispatch:
 
@@ -19,47 +20,79 @@ jobs:
 
       - name: Create Native iOS Wrapper
         run: |
-          set -e
+          set -euo pipefail
           cordova create build_wrapper com.githubuser.webapp WebApp
           cd build_wrapper
           cordova platform add ios
+
+          # Replace default www with the repo's web files (html/css/js/images/etc.)
           rm -rf www/*
-          cp ../index.html www/
-          cp ../style.css www/
-          cordova prepare ios
-          INFO_PLIST=$(find platforms/ios -type f \( -name 'Info.plist' -o -name '*-Info.plist' \) ! -path '*/CordovaLib/*' ! -path '*/build/*' | head -n 1)
-          if [ -z "$INFO_PLIST" ]; then
-            echo "Could not find generated Info.plist under platforms/ios"
+          rsync -a \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'build_wrapper' \
+            --exclude 'build' \
+            --exclude 'Info.plist' \
+            --exclude 'README*' \
+            ../ www/
+
+          if [ ! -f www/index.html ]; then
+            echo "index.html not found in repo root"
             exit 1
           fi
+
+          cordova prepare ios
+
+          # Optional: use a custom Info.plist if one exists in the repo root
           if [ -f "../Info.plist" ]; then
+            INFO_PLIST=$(find platforms/ios -type f \( -name 'Info.plist' -o -name '*-Info.plist' \) ! -path '*/CordovaLib/*' ! -path '*/build/*' ! -path '*/Pods/*' | head -n 1)
+            if [ -z "$INFO_PLIST" ]; then
+              echo "Could not find generated Info.plist under platforms/ios"
+              exit 1
+            fi
             cp ../Info.plist "$INFO_PLIST"
           fi
 
       - name: Compile Unsigned IPA
         run: |
-          set -e
-          cd build_wrapper
+          set -euo pipefail
+          cd build_wrapper/platforms/ios
+
+          # Newer Cordova iOS projects may have no .xcworkspace (only .xcodeproj)
+          if ls -d *.xcworkspace >/dev/null 2>&1; then
+            CONTAINER=(-workspace "$(ls -d *.xcworkspace | head -n 1)")
+          else
+            CONTAINER=(-project "$(ls -d *.xcodeproj | head -n 1)")
+          fi
+
           xcodebuild build \
-            -workspace platforms/ios/WebApp.xcworkspace \
+            "${CONTAINER[@]}" \
             -scheme WebApp \
             -configuration Release \
             -sdk iphoneos \
             -destination "generic/platform=iOS" \
+            -derivedDataPath "$PWD/DerivedData" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="" \
-            PROVISIONING_PROFILE_SPECIFIER="" \
-            CONFIGURATION_BUILD_DIR=./build_output
-          mkdir -p ../build/Payload
-          cp -R build_output/WebApp.app ../build/Payload/
-          cd ../build
-          zip -r WebApp.ipa Payload
+            PROVISIONING_PROFILE_SPECIFIER=""
+
+          APP_PATH=$(find DerivedData/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "Built .app not found"
+            exit 1
+          fi
+
+          mkdir -p "$GITHUB_WORKSPACE/build/Payload"
+          cp -R "$APP_PATH" "$GITHUB_WORKSPACE/build/Payload/"
+          cd "$GITHUB_WORKSPACE/build"
+          zip -qry WebApp.ipa Payload
 
       - name: Upload Finished IPA
         uses: actions/upload-artifact@v4
         with:
           name: web-app-unsigned-ipa
           path: build/WebApp.ipa
+          if-no-files-found: error
