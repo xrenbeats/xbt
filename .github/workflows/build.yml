@@ -1,6 +1,6 @@
 name: Build iOS IPA
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
 
 jobs:
   build-ios:
@@ -20,42 +20,39 @@ jobs:
       - name: Create Native iOS Wrapper
         run: |
           set -e
-          # Create the project with a UNIQUE bundle ID (com.example.app often triggers errors)
           cordova create build_wrapper com.githubuser.webapp WebApp
           cd build_wrapper
           cordova platform add ios
-          
           rm -rf www/*
           cp ../index.html www/
           cp ../style.css www/
-          
-          INFO_PLIST=$(find platforms/ios -type f \( -name 'Info.plist' -o -name 'WebApp-Info.plist' \) ! -path '*/CordovaLib/*' | head -n 1)
+          cordova prepare ios
+          INFO_PLIST=$(find platforms/ios -type f \( -name 'Info.plist' -o -name '*-Info.plist' \) ! -path '*/CordovaLib/*' ! -path '*/build/*' | head -n 1)
           if [ -z "$INFO_PLIST" ]; then
-            echo "Could not find the generated app Info.plist under platforms/ios"
+            echo "Could not find generated Info.plist under platforms/ios"
             exit 1
           fi
-          cp ../Info.plist "$INFO_PLIST"
+          if [ -f "../Info.plist" ]; then
+            cp ../Info.plist "$INFO_PLIST"
+          fi
 
       - name: Compile Unsigned IPA
         run: |
           set -e
           cd build_wrapper
-          
           xcodebuild build \
             -workspace platforms/ios/WebApp.xcworkspace \
             -scheme WebApp \
             -configuration Release \
             -sdk iphoneos \
             -destination "generic/platform=iOS" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="" \
             PROVISIONING_PROFILE_SPECIFIER="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            AD_HOC_CODE_SIGNING_ALLOWED=NO \
             CONFIGURATION_BUILD_DIR=./build_output
-
           mkdir -p ../build/Payload
           cp -R build_output/WebApp.app ../build/Payload/
           cd ../build
